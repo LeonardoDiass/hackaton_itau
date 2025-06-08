@@ -1,0 +1,115 @@
+name: Deploy Ephemeral Environment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened] # Dispara para Pull Requests
+  push:
+    branches:
+      - 'feature/**' # Dispara para branches que começam com 'feature/'
+
+env:
+  AWS_REGION: us-east-1 # Sua região AWS
+  ECR_REPO_NAME: my-app-ephemeral-repo # Nome do seu repositório ECR
+  # IMPORTANTE: Substitua pelo ID do snapshot do seu RDS original
+  SOURCE_RDS_SNAPSHOT_ID: arn:aws:rds:us-east-1:123456789012:snapshot:rds-xxxxxxxxxxxxxxxxx # Substitua pelo ARN ou identificador do seu snapshot
+
+jobs:
+  deploy-ephemeral:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Permite usar OIDC para autenticação AWS
+      contents: read
+      pull-requests: write # Permite comentar no Pull Request
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Environment Name
+        id: set-env-name
+        run: |
+          # Gera um nome único para o ambiente baseado no PR ou branch
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            ENV_ID="pr-${{ github.event.pull_request.number }}"
+          else
+            BRANCH_NAME=$(echo "${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | cut -c1-30 | sed 's/^-*//;s/-*$//')
+            ENV_ID="feature-${BRANCH_NAME}"
+          fi
+          echo "ENVIRONMENT_ID=$ENV_ID" >> $GITHUB_ENV # Define como variável de ambiente
+          echo "ENV_TAG=${ENV_ID}" >> $GITHUB_OUTPUT # Para usar em outras etapas
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # Use uma IAM Role para maior segurança (substitua pela sua Role)
+          role-to-assume: arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/GitHubActionsEphemeralRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: |
+          # Configura o backend S3 para o estado do Terraform
+          # SUBSTITUA "your-tf-state-bucket" pelo nome do seu bucket S3
+          # SUBSTITUA "your-tf-lock-table" pelo nome da sua tabela DynamoDB (para locks)
+          terraform init \
+            -backend-config="bucket=your-tf-state-bucket" \
+            -backend-config="key=${{ env.ENVIRONMENT_ID }}.tfstate" \
+            -backend-config="dynamodb_table=your-tf-lock-table"
+
+      - name: Terraform Apply (Cria EC2 e RDS)
+        id: terraform-apply
+        working-directory: ./terraform
+        run: |
+          terraform apply -auto-approve \
+            -var="env_name=${{ env.ENVIRONMENT_ID }}" \
+            -var="source_db_snapshot_identifier=${{ env.SOURCE_RDS_SNAPSHOT_ID }}"
+          
+          # Captura as saídas do Terraform para usar em passos posteriores
+          echo "RDS_ENDPOINT=$(terraform output -raw rds_endpoint)" >> $GITHUB_OUTPUT
+          echo "EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_OUTPUT
+          echo "APP_URL=http://$(terraform output -raw ec2_public_ip)" >> $GITHUB_OUTPUT
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Docker Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          # Usa o SHA do commit como tag para a imagem Docker
+          docker build -t $ECR_REGISTRY/${{ env.ECR_REPO_NAME }}:${{ github.sha }} ./application
+          docker push $ECR_REGISTRY/${{ env.ECR_REPO_NAME }}:${{ github.sha }}
+
+      - name: Install SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          # Sua chave privada SSH, armazenada como um segredo do GitHub
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # CUIDADO: 'just-a-placeholder' desabilita verificação de host. Use o 'known_hosts' real em produção.
+          known-hosts: 'just-a-placeholder'
+
+      - name: Deploy Application to EC2
+        run: |
+          chmod +x ./scripts/deploy_app_to_ec2.sh
+          # Conecta via SSH e executa o script de deploy da aplicação
+          ssh -o StrictHostKeyChecking=no ec2-user@${{ steps.terraform-apply.outputs.ec2_public_ip }} 'bash -s' < ./scripts/deploy_app_to_ec2.sh \
+            "${{ steps.login-ecr.outputs.registry }}" \
+            "${{ env.ECR_REPO_NAME }}" \
+            "${{ github.sha }}" \
+            "${{ steps.terraform-apply.outputs.rds_endpoint }}" \
+            "${{ secrets.DB_USER }}" \
+            "${{ secrets.DB_PASSWORD }}" \
+            "${{ secrets.DB_NAME }}"
+
+      - name: Comment on PR with Environment URL
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request' # Só comenta se for um Pull Request
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Ambiente de Teste Efêmero Criado!**\n\n- **Aplicação:** ${{ steps.terraform-apply.outputs.APP_URL }}\n- **Endpoint RDS:** ${{ steps.terraform-apply.outputs.RDS_ENDPOINT }}\n\nLembre-se de que este ambiente será destruído após o fechamento do Pull Request ou da branch de feature.`
+            })
