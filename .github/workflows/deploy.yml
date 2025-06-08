@@ -33,6 +33,7 @@ jobs:
             --db-instance-identifier testetestetstete \
             --db-instance-class db.t3.micro \
             --db-snapshot-identifier arn:aws:rds:us-west-2:833273427952:snapshot:database-1-snapshot \
+            --engine PostgreSQL
 
         env:
           DB_INSTANCE: ${{env.DB_INSTANCE}} 
