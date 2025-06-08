@@ -14,11 +14,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4 
 
-      - name: Configure AWS Credentials
+      - name: Configure AWS Credentials # <-- MODIFICADO AQUI!
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # Use uma IAM Role para maior segurança (substitua pela sua Role)
-          role-to-assume: arn:aws:iam::833273427952:role/AWSServiceRoleForRDS
+          # ATENÇÃO: Usando AWS Access Key ID e Secret Access Key.
+          # Armazene-as como GitHub Secrets.
+          aws-access-key-id: ASIA4EAXXO7YIXKZ725K # <-- REFERÊNCIA AO SEGREDO
+          aws-secret-access-key: l3QtYwexkl+Ck0FkhXlXtnyUbJXo3bVggOuXckps # <-- REFERÊNCIA AO SEGREDO
           aws-region: us-west-2
 
       - name: Load .env file
@@ -26,43 +28,10 @@ jobs:
 
       - name: Create Terraform configuration
         run: |
-          # Define the Terraform configuration with variables
-          cat <<EOF > main.tf
-          variable "db_identifier" {
-            description = "Identifier for the DB instance."
-            type        = string
-          }
+           aws rds create-db-instance \
+            --db-instance-identifier testetestetstete \
+            --db-instance-class db.t3.micro" \
+            --db-snapshot-identifier arn:aws:rds:us-west-2:833273427952:snapshot:database-1-snapshot \
 
-          variable "db_instance_class" {
-            description = "Instance class for the DB instance."
-            type        = string
-          }
-
-          variable "db_snapshot_identifier" {
-            description = "Snapshot identifier for the DB instance."
-            type        = string
-          }
-
-          resource "aws_db_instance" "cloned_rds" {
-            identifier          = var.db_identifier
-            instance_class      = var.db_instance_class
-            snapshot_identifier = var.db_snapshot_identifier
-          }
-          EOF
-
-      - name: Run Terraform init and plan
-        id: terraform
-        run: |
-          terraform init \
-            -backend-config="bucket=hitc-terraform-state" \
-            -backend-config="key=teste.tfstate" \
-            -backend-config="dynamodb_table=terraform-lock"
-
-          terraform plan \
-            -var="db_identifier=your-cloned-rds-identifier" \
-            -var="db_instance_class=db.t3.micro" \
-            -var="db_snapshot_identifier=${{env.DB_INSTANCE}}"
-
-          echo "NEW_DB_INSTANCE=$(terraform output -raw rds_endpoint)" >> $GITHUB_OUTPUT
         env:
           DB_INSTANCE: ${{env.DB_INSTANCE}} 
