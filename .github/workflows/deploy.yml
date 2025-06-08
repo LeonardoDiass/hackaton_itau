@@ -21,13 +21,13 @@ jobs:
           # Armazene-as como GitHub Secrets.
           aws-access-key-id: ASIA4EAXXO7YIXKZ725K # <-- REFERÊNCIA AO SEGREDO
           aws-secret-access-key: l3QtYwexkl+Ck0FkhXlXtnyUbJXo3bVggOuXckps # <-- REFERÊNCIA AO SEGREDO
-          aws-session-token: "IQoJb3JpZ2luX2VjELL//////////wEaCXVzLWVhc3QtMSJIMEYCIQDPfA7vU8zjznHvlCeTvF7T8T3ZU2AD8t/5euxDVtPq0wIhAKZUyYUVcjxbv0yP8686t57LFYV7sNF5labNisuo7OhEKqICCIr//////////wEQABoMODMzMjczNDI3OTUyIgwOBmVv3ASpwMf4UVIq9gHvxY8k2ke4xck52BA3bROt2RT4EH3IkMxaH6mcfs73z2+f3R4RM+2MPZFsGoi+oJlDO9hkF9kUm4GDrbgWk3jrrm3kuvNo5ITvNXNMzygwKUsok+IU04ooMWlYat1qj4L2YyIlV+iuGPutdJRYX9MHmzB74h9HYzwzsxY/HH4HFBlIh1mEe9lx4bJ1Vr0EmMOsyRAEzVQI29Sy7SgSZVLZ14qTiHFlVVtbDeiE+XAqawy7Yy5HwSCrNXzwZOoezNVvqsiFh+bqVIAVYqIxUrlgXliy5lpPrh22RQApyVFr0PfHahsiP0/jxraoD0CWezBNvt+h8CUwzKuVwgY6nAF4maNaRUUm/SRTDPfCZBETqMaMFp90NE+tDERNlR1Jh8ROyofL9vfLkZRyE99rGRQ2DB5cgiaTwQE7JwKH+WmddehwVssgJDq9Te2sGUgG0MQHXPAe5aBVpOAWdO8ksWaggv0y65DpNLH6wRRf0HcTMybYB3PxkkCbrlx5xon5oBDfpb4LAnySpQXnhwT60goeRdKjZw84g45kcZI="
+          aws-session-token: IQoJb3JpZ2luX2VjELL//////////wEaCXVzLWVhc3QtMSJIMEYCIQDPfA7vU8zjznHvlCeTvF7T8T3ZU2AD8t/5euxDVtPq0wIhAKZUyYUVcjxbv0yP8686t57LFYV7sNF5labNisuo7OhEKqICCIr//////////wEQABoMODMzMjczNDI3OTUyIgwOBmVv3ASpwMf4UVIq9gHvxY8k2ke4xck52BA3bROt2RT4EH3IkMxaH6mcfs73z2+f3R4RM+2MPZFsGoi+oJlDO9hkF9kUm4GDrbgWk3jrrm3kuvNo5ITvNXNMzygwKUsok+IU04ooMWlYat1qj4L2YyIlV+iuGPutdJRYX9MHmzB74h9HYzwzsxY/HH4HFBlIh1mEe9lx4bJ1Vr0EmMOsyRAEzVQI29Sy7SgSZVLZ14qTiHFlVVtbDeiE+XAqawy7Yy5HwSCrNXzwZOoezNVvqsiFh+bqVIAVYqIxUrlgXliy5lpPrh22RQApyVFr0PfHahsiP0/jxraoD0CWezBNvt+h8CUwzKuVwgY6nAF4maNaRUUm/SRTDPfCZBETqMaMFp90NE+tDERNlR1Jh8ROyofL9vfLkZRyE99rGRQ2DB5cgiaTwQE7JwKH+WmddehwVssgJDq9Te2sGUgG0MQHXPAe5aBVpOAWdO8ksWaggv0y65DpNLH6wRRf0HcTMybYB3PxkkCbrlx5xon5oBDfpb4LAnySpQXnhwT60goeRdKjZw84g45kcZI=
           aws-region: us-west-2
 
       - name: Load .env file
         uses: aarcangeli/load-dotenv@v1.0.0
 
-      - name: Create Terraform configuration
+      - name: Create RDS
         run: |
            aws rds create-db-instance \
             --db-instance-identifier testetestetstete \
