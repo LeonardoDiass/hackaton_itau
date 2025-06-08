@@ -1,0 +1,72 @@
+name: Deploy Ephemeral Environment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened] 
+  push:
+    branches:
+      - 'test/**' 
+
+   
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # Use uma IAM Role para maior segurança (substitua pela sua Role)
+          role-to-assume: arn:aws:iam::833273427952:role/AWSServiceRoleForRDS
+          aws-region: us-west-2
+
+      - name: Load .env file
+        uses: aarcangeli/load-dotenv@v1.0.0
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3 \
+
+      - name: Create Terraform configuration
+        run: |
+          # Define the Terraform configuration with variables
+          cat <<EOF > main.tf
+          variable "db_identifier" {
+            description = "Identifier for the DB instance."
+            type        = string
+          }
+
+          variable "db_instance_class" {
+            description = "Instance class for the DB instance."
+            type        = string
+          }
+
+          variable "db_snapshot_identifier" {
+            description = "Snapshot identifier for the DB instance."
+            type        = string
+          }
+
+          resource "aws_db_instance" "cloned_rds" {
+            identifier          = var.db_identifier
+            instance_class      = var.db_instance_class
+            snapshot_identifier = var.db_snapshot_identifier
+          }
+          EOF
+
+      - name: Run Terraform init and plan
+        id: terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=your-tf-state-bucket" \
+            -backend-config="key=teste.tfstate" \
+            -backend-config="dynamodb_table=your-tf-lock-table"
+
+          terraform plan \
+            -var="db_identifier=your-cloned-rds-identifier" \
+            -var="db_instance_class=db.t3.micro" \
+            -var="db_snapshot_identifier=${{env.DB_INSTANCE}}"
+
+          echo "NEW_DB_INSTANCE=$(terraform output -raw rds_endpoint)" >> $GITHUB_OUTPUT
+        env:
+          DB_INSTANCE: ${{env.DB_INSTANCE}} 
