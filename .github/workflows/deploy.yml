@@ -1,8 +1,6 @@
 name: Deploy Ephemeral Environment
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened] 
   push:
     branches:
       - 'test/**' 
