@@ -54,9 +54,9 @@ jobs:
         id: terraform
         run: |
           terraform init \
-            -backend-config="bucket=your-tf-state-bucket" \
+            -backend-config="bucket=hitc-terraform-state" \
             -backend-config="key=teste.tfstate" \
-            -backend-config="dynamodb_table=your-tf-lock-table"
+            -backend-config="dynamodb_table=terraform-lock"
 
           terraform plan \
             -var="db_identifier=your-cloned-rds-identifier" \
