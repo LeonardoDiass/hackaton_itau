@@ -25,7 +25,7 @@ jobs:
         uses: aarcangeli/load-dotenv@v1.0.0
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@last \
+        uses: hashicorp/setup-terraform@last
 
       - name: Create Terraform configuration
         run: |
